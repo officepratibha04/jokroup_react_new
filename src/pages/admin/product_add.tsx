@@ -1,4 +1,3 @@
-// src/components/admin/AddProductDialog.tsx
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/use-toast';
-import { Image, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { categories } from '@/api/api';
 
 interface Category {
   id: number;
@@ -33,14 +33,16 @@ interface Subcategory {
   id: number;
   name: string;
   slug: string;
+  category_id: number;
 }
 
-interface AddProductDialogProps {
+export const AddProductDialog = ({
+  categories,
+  onProductAdded,
+}: {
   categories: Category[];
   onProductAdded: () => void;
-}
-
-export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialogProps) => {
+}) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -64,12 +66,8 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
     if (selectedCategory) {
       const category = categories.find(cat => cat.id === selectedCategory);
       if (category) {
-        setAvailableSubcategories(category.subcategories);
-        if (category.subcategories.length > 0) {
-          setSelectedSubcategory(category.subcategories[0].id);
-        } else {
-          setSelectedSubcategory(null);
-        }
+        setAvailableSubcategories(category.subcategories || []);
+        setSelectedSubcategory(null);
       }
     } else {
       setAvailableSubcategories([]);
@@ -110,16 +108,16 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
       const form = new FormData();
       form.append('name', formData.name);
       form.append('description', formData.description);
-      form.append('price', formData.price);
-      form.append('discount_price', formData.discount_price);
-      form.append('colors', formData.colors);
-      form.append('sizes', formData.sizes);
+      form.append('price', String(parseFloat(formData.price)));
+      form.append('discount_price', formData.discount_price ? String(parseFloat(formData.discount_price)) : '0.0');
+      form.append('category_id', String(selectedCategory));
+      form.append('subcategory_id', String(selectedSubcategory));
+      form.append('colors', JSON.stringify(formData.colors.split(',').map(c => c.trim()).filter(Boolean)));
+      form.append('sizes', JSON.stringify(formData.sizes.split(',').map(s => s.trim()).filter(Boolean)));
       form.append('in_stock', String(formData.in_stock));
       form.append('featured', String(formData.featured));
       form.append('best_seller', String(formData.best_seller));
       form.append('new_arrival', String(formData.new_arrival));
-      form.append('category_id', String(selectedCategory));
-      form.append('subcategory_id', String(selectedSubcategory));
       images.forEach(image => {
         form.append('images', image);
       });
@@ -134,14 +132,10 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
         throw new Error(errorData.detail || 'Failed to create product');
       }
 
-      await response.json();
-      toast({
-        title: 'Success',
-        description: 'Product created successfully!',
-      });
-      setOpen(false);
+      toast({ title: 'Success', description: 'Product created successfully!' });
       onProductAdded();
       resetForm();
+      setOpen(false);
     } catch (error) {
       toast({
         title: 'Error',
@@ -175,7 +169,7 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="w-4 h-4 mr-2" />
           Add Product
         </Button>
       </DialogTrigger>
@@ -185,109 +179,71 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Category */}
+            {/* Category Select */}
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Select
                 value={selectedCategory?.toString() || ''}
                 onValueChange={(value) => setSelectedCategory(Number(value))}
-                required
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Subcategory */}
+            {/* Subcategory Select */}
             <div className="space-y-2">
               <Label htmlFor="subcategory">Subcategory</Label>
               <Select
                 value={selectedSubcategory?.toString() || ''}
                 onValueChange={(value) => setSelectedSubcategory(Number(value))}
-                required
                 disabled={!selectedCategory || availableSubcategories.length === 0}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedCategory ? 'Select a subcategory' : 'Select category first'} />
+                <SelectTrigger id="subcategory">
+                  <SelectValue placeholder={!selectedCategory ? "Select category first" : "Select subcategory"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableSubcategories.map((subcategory) => (
-                    <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                      {subcategory.name}
+                  {availableSubcategories.map(sub => (
+                    <SelectItem key={sub.id} value={sub.id.toString()}>
+                      {sub.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input name="name" value={formData.name} onChange={handleInputChange} required />
-            </div>
+            <InputBlock id="name" label="Product Name" value={formData.name} onChange={handleInputChange} />
+            <InputBlock id="price" label="Price" type="number" value={formData.price} onChange={handleInputChange} />
+            <InputBlock id="discount_price" label="Discount Price" type="number" value={formData.discount_price} onChange={handleInputChange} />
+            <InputBlock id="colors" label="Colors (comma separated)" value={formData.colors} onChange={handleInputChange} />
+            <InputBlock id="sizes" label="Sizes (comma separated)" value={formData.sizes} onChange={handleInputChange} />
 
-            {/* Price */}
-            <div className="space-y-2">
-              <Label htmlFor="price">Price</Label>
-              <Input name="price" type="number" value={formData.price} onChange={handleInputChange} required />
-            </div>
-
-            {/* Discount Price */}
-            <div className="space-y-2">
-              <Label htmlFor="discount_price">Discount Price</Label>
-              <Input name="discount_price" type="number" value={formData.discount_price} onChange={handleInputChange} />
-            </div>
-
-            {/* Colors */}
-            <div className="space-y-2">
-              <Label htmlFor="colors">Colors (comma separated)</Label>
-              <Input name="colors" value={formData.colors} onChange={handleInputChange} />
-            </div>
-
-            {/* Sizes */}
-            <div className="space-y-2">
-              <Label htmlFor="sizes">Sizes (comma separated)</Label>
-              <Input name="sizes" value={formData.sizes} onChange={handleInputChange} />
-            </div>
-
-            {/* Description */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea name="description" value={formData.description} onChange={handleInputChange} required />
+              <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} required />
             </div>
 
-            {/* Image Upload */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="images">Images</Label>
-              <Input type="file" name="images" multiple onChange={handleImageChange} />
+              <Input id="images" type="file" name="images" multiple onChange={handleImageChange} />
             </div>
 
-            {/* Switches */}
-            <div className="flex flex-wrap gap-6 md:col-span-2">
-              <div className="flex items-center gap-2">
-                <Switch checked={formData.in_stock} onCheckedChange={(val) => handleSwitchChange('in_stock', val)} />
-                <Label>In Stock</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={formData.featured} onCheckedChange={(val) => handleSwitchChange('featured', val)} />
-                <Label>Featured</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={formData.best_seller} onCheckedChange={(val) => handleSwitchChange('best_seller', val)} />
-                <Label>Best Seller</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={formData.new_arrival} onCheckedChange={(val) => handleSwitchChange('new_arrival', val)} />
-                <Label>New Arrival</Label>
-              </div>
+            {/* Feature Switches */}
+            <div className="flex flex-wrap gap-4 md:col-span-2">
+              {['in_stock', 'featured', 'best_seller', 'new_arrival'].map((field) => (
+                <div key={field} className="flex items-center gap-2">
+                  <Switch checked={formData[field as keyof typeof formData] as boolean} onCheckedChange={(val) => handleSwitchChange(field, val)} />
+                  <Label>{field.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</Label>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -301,3 +257,22 @@ export const AddProductDialog = ({ categories, onProductAdded }: AddProductDialo
     </Dialog>
   );
 };
+
+const InputBlock = ({
+  id,
+  label,
+  type = 'text',
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) => (
+  <div className="space-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <Input id={id} name={id} type={type} value={value} onChange={onChange} required />
+  </div>
+);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createProduct } from "@/api/apiHelper";
 
 export default function ProductForm() {
   const [formData, setFormData] = useState({
@@ -36,30 +37,19 @@ export default function ProductForm() {
     e.preventDefault();
 
     const formDataToSend = new FormData();
-
     for (const key in formData) {
       formDataToSend.append(key, formData[key]);
     }
-
     for (let i = 0; i < selectedImages.length; i++) {
       formDataToSend.append("images", selectedImages[i]);
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/product/create", {
-        method: "POST",
-        body: formDataToSend,
-      });
-
-      if (response.ok) {
-        alert("Product created successfully!");
-      } else {
-        const errorData = await response.json();
-        console.error("Backend error:", errorData);
-        alert("Failed to create product");
-      }
+      const response = await createProduct(formDataToSend);
+      alert("Product created successfully!");
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Backend error:", error);
+      alert("Failed to create product");
     }
   };
 

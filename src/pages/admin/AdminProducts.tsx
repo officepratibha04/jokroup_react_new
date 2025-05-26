@@ -92,19 +92,6 @@ interface Subcategory {
   slug: string;
 }
 
-const categories: Category[] = [
-  {
-    id: 1,
-    name: "Clothing",
-    slug: "clothing",
-    subcategories: [
-      { id: 201, name: "Men", slug: "men" },
-      { id: 202, name: "Women", slug: "women" },
-      { id: 203, name: "Kids", slug: "Kids" },
-      { id: 204, name: "Accessories", slug: "Accessories" }
-    ],
-  },
-];
 interface AddProductDialogProps {
   categories: Category[];
   onProductAdded: () => void; // This is what your component expects
@@ -167,7 +154,7 @@ interface AddProductDialogProps {
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category.id} value={category.slug}>
+                    <SelectItem key={category.id  } value={category.slug}>
                       {category.name}
                     </SelectItem>
                   ))}

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { users } from '@/data/mockData';
+import { users as mockUsers } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,8 +25,8 @@ import {
   UserCog,
   Mail
 } from 'lucide-react';
-import { useStore } from '@/contexts/StoreContext'; // Import useStore for token
-import { addUserAdmin } from '@/api/apiHelper'; // <-- Import the helper
+import { useStore } from '@/contexts/StoreContext';
+import { addUserAdmin } from '@/api/apiHelper';
 
 const AdminUsers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,7 +34,9 @@ const AdminUsers = () => {
   const [usersPerPage] = useState(10);
   const { state } = useStore();
 
-  // Dialog state for Add User
+  const [users, setUsers] = useState(mockUsers);
+
+  // Dialog state
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addUserForm, setAddUserForm] = useState({
     first_name: '',
@@ -45,35 +47,32 @@ const AdminUsers = () => {
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState('');
 
-  // Filter users based on search term
   const filteredUsers = users.filter(user => {
     const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
     const searchTermLower = searchTerm.toLowerCase();
-    
+
     return (
       fullName.includes(searchTermLower) ||
       user.email.toLowerCase().includes(searchTermLower) ||
       user.role.toLowerCase().includes(searchTermLower)
     );
   });
-  
-  // Pagination logic
+
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-  
+
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
     }
   };
-  
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Search is already dynamic, no need to do anything here
   };
-  
+
   const handleAddUser = () => {
     setShowAddDialog(true);
     setAddUserForm({
@@ -90,48 +89,58 @@ const AdminUsers = () => {
     setAddUserLoading(true);
     setAddUserError('');
     try {
-      await addUserAdmin(addUserForm); // <-- Use the helper function
+      const response = await addUserAdmin(addUserForm);
+      const newUser = {
+        ...response,
+        id: Math.random().toString(36).substr(2, 9), // Temporary ID
+        firstName: addUserForm.first_name,
+        lastName: addUserForm.last_name,
+        email: addUserForm.email,
+        role: 'user',
+        createdAt: new Date().toISOString(),
+        avatar: '',
+      };
+      setUsers(prev => [newUser, ...prev]);
       toast({
         title: 'User Added',
         description: 'User has been added successfully.',
       });
       setShowAddDialog(false);
-      // Optionally, refresh user list here
     } catch (error: any) {
       setAddUserError(error?.detail || 'Failed to add user');
     } finally {
       setAddUserLoading(false);
     }
   };
-  
+
   const handleEditUser = (userId: string) => {
     toast({
       title: 'Edit User',
       description: `Editing user ${userId}. This feature is not implemented in the demo.`,
     });
   };
-  
+
   const handleDeleteUser = (userId: string) => {
     toast({
       title: 'Delete User',
       description: `Deleting user ${userId}. This feature is not implemented in the demo.`,
     });
   };
-  
+
   const handleEmailUser = (userId: string) => {
     toast({
       title: 'Email User',
       description: `Emailing user ${userId}. This feature is not implemented in the demo.`,
     });
   };
-  
+
   return (
     <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">User Management</h1>
         <p className="text-gray-600">Manage your users</p>
       </div>
-      
+
       <Card className="mb-8">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row justify-between gap-4">
@@ -147,7 +156,7 @@ const AdminUsers = () => {
                 Search
               </Button>
             </form>
-            
+
             <Button onClick={handleAddUser}>
               <UserPlus className="h-4 w-4 mr-2" />
               Add User
@@ -155,8 +164,7 @@ const AdminUsers = () => {
           </div>
         </CardContent>
       </Card>
-      
-      {/* Add User Dialog */}
+
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
@@ -208,7 +216,7 @@ const AdminUsers = () => {
           </div>
         </div>
       )}
-      
+
       <div className="bg-white rounded-lg shadow">
         <div className="overflow-x-auto">
           <Table>
@@ -264,24 +272,16 @@ const AdminUsers = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleEditUser(user.id)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleEditUser(user.id)}>
                         <UserCog className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleEmailUser(user.id)}
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleEmailUser(user.id)}>
                         <Mail className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
-                        size="icon"
-                        onClick={() => handleDeleteUser(user.id)}
+                        size="icon" 
+                        onClick={() => handleDeleteUser(user.id)} 
                         className="text-red-500 hover:text-red-700"
                       >
                         <UserX className="h-4 w-4" />
@@ -290,7 +290,7 @@ const AdminUsers = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              
+
               {filteredUsers.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8">
@@ -307,7 +307,7 @@ const AdminUsers = () => {
             </TableBody>
           </Table>
         </div>
-        
+
         {filteredUsers.length > 0 && (
           <div className="flex items-center justify-between p-4 border-t">
             <div className="text-sm text-gray-500">
@@ -315,43 +315,21 @@ const AdminUsers = () => {
               {Math.min(indexOfLastUser, filteredUsers.length)} of{' '}
               {filteredUsers.length} users
             </div>
-            
+
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => paginate(1)}
-                disabled={currentPage === 1}
-              >
+              <Button variant="outline" size="icon" onClick={() => paginate(1)} disabled={currentPage === 1}>
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
+              <Button variant="outline" size="icon" onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
-              <span className="px-4 py-2 text-sm">
-                Page {currentPage} of {totalPages}
-              </span>
-              
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
+
+              <span className="px-4 py-2 text-sm">Page {currentPage} of {totalPages}</span>
+
+              <Button variant="outline" size="icon" onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => paginate(totalPages)}
-                disabled={currentPage === totalPages}
-              >
+              <Button variant="outline" size="icon" onClick={() => paginate(totalPages)} disabled={currentPage === totalPages}>
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
